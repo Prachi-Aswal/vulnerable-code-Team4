@@ -17,23 +17,7 @@ jobs:
           node-version: 14
       - name: Install Dependencies
         run: npm install
-      - name: Run npm audit for Security Issues
-        id: npm-audit
-        continue-on-error: true
-        run: npm audit --json > npm-audit-results.json || true
-      - name: Fix Security Issues Automatically (NPM)
-        run: npm audit fix --force || true
-      - name: Check if Security Issues are Resolved
-        id: audit-check
-        run: |
-          npm audit --json > post-audit-results.json || true
-          ISSUES=$(jq '.metadata.vulnerabilities.total' post-audit-results.json)
-          if [ "$ISSUES" -gt 0 ]; then
-            echo "Security issues still exist!"
-            exit 1
-          else
-            echo "No security issues found."
-          fi
+        
       - name: Install Trivy
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
@@ -49,16 +33,27 @@ jobs:
  
       - name: Run Docker Image Scan
         run: trivy image --severity HIGH,CRITICAL my-app:latest
- 
-      - name: Fix Security Issues in Docker Image
+        
+      - name: Run npm audit for Security Issues
+        id: npm-audit
+        continue-on-error: true
+        run: npm audit --json > npm-audit-results.json || true
+        
+      - name: Fix Security Issues Automatically (NPM)
+        run: npm audit fix --force || true
+        
+      - name: Check if Security Issues are Resolved
+        id: audit-check
         run: |
-          echo "Scanning and fixing Docker image vulnerabilities..."
-          docker scan . || true
- 
-      - name: Rebuild and Rescan Docker Image After Fixes
-        run: |
-          docker build -t my-app:latest .
-          trivy image --severity HIGH,CRITICAL my-app:latest
+          npm audit --json > post-audit-results.json || true
+          ISSUES=$(jq '.metadata.vulnerabilities.total' post-audit-results.json)
+          if [ "$ISSUES" -gt 0 ]; then
+            echo "Security issues still exist!"
+            exit 1
+          else
+            echo "No security issues found."
+          fi
+      
  
       - name: Debug Trivy
         run: |
@@ -66,3 +61,11 @@ jobs:
           docker images
           echo "Checking Trivy installation..."
           trivy --version
+
+      - name: Commit Dockerfile fixes (if any)
+        run: |
+          git config --global user.name 'Prachi-Aswal'
+          git config --global user.email 'prachi.aswal@cloudtechner.com'
+          git add Dockerfile
+          git commit -m "Auto-fixed security vulnerabilities in Dockerfile"
+          git push
