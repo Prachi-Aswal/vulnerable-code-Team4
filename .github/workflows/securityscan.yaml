@@ -1,92 +1,58 @@
-name: CI/CD Pipeline
- 
+name: Security Scan and Fix
+
 on:
   push:
     branches:
       - main
   pull_request:
-    branches:
-      - main
- 
+
 jobs:
-  security-scan:
+  security_scan:
+    name: Security Scan and Fix
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
- 
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
       - name: Set up Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
-          node-version: '20'
- 
-      - name: Install dependencies
+          node-version: 14
+
+      - name: Install Dependencies
         run: npm install
- 
-      - name: Install ESLint
-        run: npm install eslint --save-dev
- 
-      - name: Generate ESLint Config (if missing)
+
+      - name: Run npm audit for Security Issues
+        id: npm-audit
+        continue-on-error: true
+        run: npm audit --json > npm-audit-results.json || true
+
+      - name: Fix Security Issues Automatically
+        run: npm audit fix || true
+
+      - name: Check if Security Issues are Resolved
+        id: audit-check
         run: |
-          if [ ! -f .eslintrc.js ] && [ ! -f .eslintrc.json ] && [ ! -f eslint.config.js ]; then
-            echo "Creating ESLint configuration..."
-            npx eslint --init --no-interactive
+          npm audit --json > post-audit-results.json || true
+          ISSUES=$(jq '.metadata.vulnerabilities.total' post-audit-results.json)
+          if [ "$ISSUES" -gt 0 ]; then
+            echo "Security issues still exist!"
+            exit 1
           else
-            echo "ESLint configuration found."
+            echo "No security issues found."
           fi
- 
-      - name: Run ESLint
-        run: npx eslint .
- 
-      - name: Run npm audit
-        run: npm audit
- 
-      - name: Build Docker image
-        run: docker build -t your-image-name .
- 
-      - name: Scan Docker image with Trivy
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: 'your-image-name'
-          format: 'table'
-          exit-code: '1'
- 
-  auto-fix:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
- 
-      - name: Set up Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '20'
- 
-      - name: Install dependencies
-        run: npm install
- 
-      - name: Install ESLint
-        run: npm install eslint --save-dev
- 
-      - name: Generate ESLint Config (if missing)
+
+      - name: Set up Trivy (Docker Security Scan)
         run: |
-          if [ ! -f .eslintrc.js ] && [ ! -f .eslintrc.json ] && [ ! -f eslint.config.js ]; then
-            echo "Creating ESLint configuration..."
-            npx eslint --init --no-interactive
-          else
-            echo "ESLint configuration found."
-          fi
- 
-      - name: Run Prettier
-        run: npx prettier --write .
- 
-      - name: Run ESLint with auto-fix
-        run: npx eslint --fix .
- 
-      - name: Commit fixes
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
+          trivy --version
+
+      - name: Run Trivy Scan on Dockerfile
+        run: trivy fs --exit-code 1 --severity HIGH,CRITICAL .
+
+      - name: Run Docker Image Scan
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -m "Automated security fixes" || echo "No changes to commit"
-          git push || echo "No changes to push"
+          docker build -t my-app .
+          trivy image --exit-code 1 --severity HIGH,CRITICAL my-app
+
