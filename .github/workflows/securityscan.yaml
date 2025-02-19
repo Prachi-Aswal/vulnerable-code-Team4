@@ -43,10 +43,16 @@ jobs:
             echo "No security issues found."
           fi
 
-      - name: Set up Trivy (Docker Security Scan)
+      - name: Install Trivy
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
-          trivy --version
+          sudo mv ./bin/trivy /usr/local/bin/
+          chmod +x /usr/local/bin/trivy
+          echo "Trivy installed successfully."
+
+      - name: Verify Trivy Installation
+        run: trivy --version
+
 
       - name: Run Trivy Scan on Dockerfile
         run: trivy fs --exit-code 1 --severity HIGH,CRITICAL .
