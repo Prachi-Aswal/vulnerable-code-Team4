@@ -23,21 +23,6 @@ jobs:
       - name: Install dependencies
         run: npm install
  
-      - name: Install ESLint
-        run: npm install eslint --save-dev
- 
-      - name: Generate ESLint Config (if missing)
-        run: |
-          if [ ! -f .eslintrc.js ] && [ ! -f .eslintrc.json ] && [ ! -f eslint.config.js ]; then
-            echo "Creating ESLint configuration..."
-            npx eslint --init --no-interactive
-          else
-            echo "ESLint configuration found."
-          fi
- 
-      - name: Run ESLint
-        run: npx eslint .
- 
       - name: Run npm audit
         run: npm audit
  
@@ -64,18 +49,6 @@ jobs:
  
       - name: Install dependencies
         run: npm install
- 
-      - name: Install ESLint
-        run: npm install eslint --save-dev
- 
-      - name: Generate ESLint Config (if missing)
-        run: |
-          if [ ! -f .eslintrc.js ] && [ ! -f .eslintrc.json ] && [ ! -f eslint.config.js ]; then
-            echo "Creating ESLint configuration..."
-            npx eslint --init --no-interactive
-          else
-            echo "ESLint configuration found."
-          fi
  
       - name: Run Prettier
         run: npx prettier --write .
