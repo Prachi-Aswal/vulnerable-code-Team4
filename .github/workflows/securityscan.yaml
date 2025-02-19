@@ -56,6 +56,14 @@ jobs:
 
       - name: Run Trivy Scan on Dockerfile
         run: trivy fs --exit-code 1 --severity HIGH,CRITICAL .
+        
+      - name: Debug Trivy
+        run: |
+          echo "Listing Docker images..."
+          docker images
+          echo "Checking Trivy installation..."
+          trivy --version
+
 
       - name: Run Docker Image Scan
         run: |
