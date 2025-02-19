@@ -53,7 +53,7 @@ jobs:
       - name: Fix Security Issues in Docker Image
         run: |
           echo "Scanning and fixing Docker image vulnerabilities..."
-          docker scan --file Dockerfile my-app:latest || true
+          docker scan . || true
  
       - name: Rebuild and Rescan Docker Image After Fixes
         run: |
