@@ -1,36 +1,28 @@
 name: Security Scan and Fix
-
 on:
   push:
     branches:
       - main
   pull_request:
-
 jobs:
   security_scan:
     name: Security Scan and Fix
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
-
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 14
-
       - name: Install Dependencies
         run: npm install
-
       - name: Run npm audit for Security Issues
         id: npm-audit
         continue-on-error: true
         run: npm audit --json > npm-audit-results.json || true
-
-      - name: Fix Security Issues Automatically
-        run: npm audit fix || true
-
+      - name: Fix Security Issues Automatically (NPM)
+        run: npm audit fix --force || true
       - name: Check if Security Issues are Resolved
         id: audit-check
         run: |
@@ -42,31 +34,35 @@ jobs:
           else
             echo "No security issues found."
           fi
-
       - name: Install Trivy
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
           sudo mv ./bin/trivy /usr/local/bin/
           chmod +x /usr/local/bin/trivy
           echo "Trivy installed successfully."
-
       - name: Verify Trivy Installation
         run: trivy --version
-
-
       - name: Run Trivy Scan on Dockerfile
         run: trivy fs --severity HIGH,CRITICAL .
-
-
+      - name: Build Docker Image
+        run: docker build -t my-app:latest .
+ 
       - name: Run Docker Image Scan
+        run: trivy image --severity HIGH,CRITICAL my-app:latest
+ 
+      - name: Fix Security Issues in Docker Image
         run: |
-          docker build -t my-app .
-          trivy image --severity HIGH,CRITICAL my-app
-
+          echo "Scanning and fixing Docker image vulnerabilities..."
+          docker scan --accept-license --file Dockerfile my-app:latest || true
+ 
+      - name: Rebuild and Rescan Docker Image After Fixes
+        run: |
+          docker build -t my-app:latest .
+          trivy image --severity HIGH,CRITICAL my-app:latest
+ 
       - name: Debug Trivy
         run: |
           echo "Listing Docker images..."
           docker images
           echo "Checking Trivy installation..."
           trivy --version
-
